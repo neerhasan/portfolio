@@ -1,0 +1,22 @@
+---
+import { siteData } from '../content/site-data.js';
+---
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-content">
+      <div class="footer-info">
+        <p class="footer-name">{siteData.name}</p>
+        <p class="footer-tagline">{siteData.tagline}</p>
+      </div>
+      <div class="footer-links">
+        <a href={siteData.linkedin} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">LinkedIn</a>
+        <a href={siteData.behance} target="_blank" rel="noopener noreferrer" aria-label="Behance">Behance</a>
+        <a href={siteData.github} target="_blank" rel="noopener noreferrer" aria-label="GitHub">GitHub</a>
+        <a href="mailto:{siteData.email}" aria-label="Email">Email</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; {new Date().getFullYear()} {siteData.name}. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
