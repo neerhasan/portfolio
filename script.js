@@ -1,162 +1,88 @@
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-// Navigation toggle
 const navToggle = document.getElementById('navToggle');
 const navLinks = document.getElementById('navLinks');
 
 function setMenu(open) {
-  navLinks.classList.toggle('active', open);
-  navToggle.classList.toggle('active', open);
+  navLinks.classList.toggle('is-open', open);
   navToggle.setAttribute('aria-expanded', String(open));
+  navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
 }
 
-navToggle.addEventListener('click', () => setMenu(!navLinks.classList.contains('active')));
-
-// Close mobile menu on link click
-navLinks.querySelectorAll('a').forEach(link => {
-  link.addEventListener('click', () => setMenu(false));
+navToggle.addEventListener('click', () => setMenu(!navLinks.classList.contains('is-open')));
+navLinks.addEventListener('click', (e) => {
+  if (e.target.closest('a')) setMenu(false);
 });
-
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && navLinks.classList.contains('active')) {
+  if (e.key === 'Escape' && navLinks.classList.contains('is-open')) {
     setMenu(false);
     navToggle.focus();
   }
 });
 
-// Header shadow after scrolling
-const header = document.getElementById('header');
+const navTape = document.getElementById('navTape');
 let ticking = false;
 
+function updateTape() {
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  navTape.style.setProperty('--progress', max > 0 ? window.scrollY / max : 0);
+  ticking = false;
+}
 window.addEventListener('scroll', () => {
   if (ticking) return;
   ticking = true;
-  requestAnimationFrame(() => {
-    header.classList.toggle('is-scrolled', window.pageYOffset > 8);
-    ticking = false;
-  });
+  requestAnimationFrame(updateTape);
 }, { passive: true });
+updateTape();
 
-// Highlight the nav link of the section in view
 const linkById = new Map();
-navLinks.querySelectorAll('a[href^="#"]').forEach(a => linkById.set(a.getAttribute('href').slice(1), a));
+navLinks.querySelectorAll('a[href^="#"]').forEach((a) => linkById.set(a.getAttribute('href').slice(1), a));
 
 const sectionObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (!entry.isIntersecting) return;
-    linkById.forEach((a, id) => {
-      if (id === entry.target.id) a.setAttribute('aria-current', 'true');
-      else a.removeAttribute('aria-current');
-    });
+  entries.forEach((entry) => {
+    const link = linkById.get(entry.target.id);
+    if (entry.isIntersecting) link.setAttribute('aria-current', 'true');
+    else link.removeAttribute('aria-current');
   });
 }, { rootMargin: '-45% 0px -50% 0px' });
-
-linkById.forEach((a, id) => {
+linkById.forEach((_, id) => {
   const section = document.getElementById(id);
   if (section) sectionObserver.observe(section);
 });
 
-// Project filtering
-const filterButtons = document.querySelectorAll('.filter-btn');
-const projectCards = document.querySelectorAll('.project-card');
-let filterRun = 0;
-
-function applyFilter(filter) {
-  const run = ++filterRun;
-  const matches = (card) => filter === 'all' || card.dataset.category.split(' ').includes(filter);
-  const leaving = [];
-  const entering = [];
-
-  projectCards.forEach(card => {
-    const show = matches(card);
-    const visible = !card.classList.contains('hidden');
-    if (!show && visible) leaving.push(card);
-    if (show && !visible) entering.push(card);
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach((entry) => {
+    if (!entry.isIntersecting) return;
+    entry.target.classList.add('is-in');
+    revealObserver.unobserve(entry.target);
   });
+}, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
+document.querySelectorAll('[data-reveal]').forEach((el) => revealObserver.observe(el));
 
-  const reveal = () => {
-    if (run !== filterRun) return;
-    leaving.forEach(card => {
-      card.classList.add('hidden');
-      card.classList.remove('is-leaving');
-    });
-    entering.forEach((card, i) => {
-      card.classList.remove('hidden', 'is-leaving');
-      card.classList.remove('is-entering');
-      card.style.animationDelay = `${i * 70}ms`;
-      void card.offsetWidth;
-      card.classList.add('is-entering');
-    });
-  };
+const copyEmail = document.getElementById('copyEmail');
+const copyStatus = document.getElementById('copyStatus');
 
-  if (reducedMotion.matches || leaving.length === 0) {
-    reveal();
-    return;
+copyEmail.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(copyEmail.dataset.email);
+    copyEmail.textContent = 'Copied';
+    copyStatus.textContent = 'Email address copied.';
+    setTimeout(() => {
+      copyEmail.textContent = 'Copy';
+      copyStatus.textContent = '';
+    }, 2500);
+  } catch {
+    copyStatus.textContent = `Copy failed. The address is ${copyEmail.dataset.email}.`;
   }
-  leaving.forEach(card => card.classList.add('is-leaving'));
-  setTimeout(reveal, 240);
-}
-
-filterButtons.forEach(btn => {
-  btn.addEventListener('click', () => {
-    filterButtons.forEach(b => {
-      b.classList.remove('active');
-      b.setAttribute('aria-pressed', 'false');
-    });
-    btn.classList.add('active');
-    btn.setAttribute('aria-pressed', 'true');
-    applyFilter(btn.dataset.filter);
-  });
 });
 
-projectCards.forEach(card => {
-  card.addEventListener('animationend', () => {
-    card.classList.remove('is-entering');
-    card.style.animationDelay = '';
-  });
-});
-
-// Reveal on scroll
-const revealItems = document.querySelectorAll('[data-reveal]');
-
-if ('IntersectionObserver' in window && !reducedMotion.matches) {
-  const revealObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      entry.target.classList.add('is-in');
-      revealObserver.unobserve(entry.target);
-    });
-  }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
-
-  revealItems.forEach(el => revealObserver.observe(el));
-} else {
-  revealItems.forEach(el => el.classList.add('is-in'));
-}
-
-// Form submission
 const contactForm = document.getElementById('contactForm');
 const formStatus = document.getElementById('formStatus');
 
-contactForm.addEventListener('submit', async (e) => {
+// No backend: the form composes the message in the visitor's own email app
+contactForm.addEventListener('submit', (e) => {
   e.preventDefault();
-
-  const submitBtn = contactForm.querySelector('button[type="submit"]');
-  const originalText = submitBtn.textContent;
-
-  submitBtn.textContent = 'Sending...';
-  submitBtn.disabled = true;
-  submitBtn.setAttribute('aria-busy', 'true');
-
-  // Simulate form submission (replace with actual endpoint)
-  await new Promise(resolve => setTimeout(resolve, 1500));
-
-  submitBtn.textContent = 'Sent!';
-  submitBtn.removeAttribute('aria-busy');
-  formStatus.textContent = 'Demo only: this form is not connected to an inbox yet. Nothing was sent.';
-
-  setTimeout(() => {
-    submitBtn.textContent = originalText;
-    submitBtn.disabled = false;
-    contactForm.reset();
-  }, 2000);
+  const data = new FormData(contactForm);
+  const subject = encodeURIComponent(data.get('subject'));
+  const body = encodeURIComponent(`${data.get('message')}\n\n${data.get('name')}`);
+  window.location.href = `mailto:zihad.nh@gmail.com?subject=${subject}&body=${body}`;
+  formStatus.textContent = 'Your email app should now open with this message. If it does not, write to zihad.nh@gmail.com.';
 });
